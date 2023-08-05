@@ -1,7 +1,7 @@
 const bands = require('express').Router();
 const db = require('../models');
-const { Band } = db;
-const { Op } = require('sequelize')
+const { Band, MeetGreet, Event, SetTime } = db;
+const { Op } = require('sequelize');
 
 //* GET ALL BANDS
 bands.get('/', async (req, res) => {
@@ -10,7 +10,7 @@ bands.get('/', async (req, res) => {
             order: [['available_start_time', 'ASC']],
             where: {
                 name: {
-                    [Op.like]: `%${req.query.name}%`,
+                    [Op.like]: `%${req.query.name ? req.query.name : ''}%`,
                 },
             },
         });
@@ -21,26 +21,44 @@ bands.get('/', async (req, res) => {
 });
 
 //* GET ONE BAND
-bands.get('/:id', async (req, res) => {
+bands.get('/:name', async (req, res) => {
     try {
         const foundBand = await Band.findOne({
-            where: { band_id: req.params.id }
-        })
-        res.status(200).json(foundBand)
+            where: { name: req.params.name },
+            include: [
+                {
+                    model: MeetGreet,
+                    as: 'meet_greets',
+                    include: {
+                        model: Event,
+                        as: 'event',
+                        where: {
+                            name: {
+                                [Op.like]: `%${req.query.event ? req.query.event : ''}%`,
+                            },
+                        },
+                    },
+                },
+                {
+                    model: SetTime,
+                    as: 'set_times',
+                    include: {
+                        model: Event,
+                        as: 'event',
+                        where: {
+                            name: {
+                                [Op.like]: `%${req.query.event ? req.query.event : ''}%`,
+                            },
+                        },
+                    },
+                },
+            ],
+        });
+        res.status(200).json(foundBand);
     } catch (e) {
-        res.status(500).json(e)
+        res.status(500).json(e);
     }
-})
-
-//* CREATE BAND
-bands.post('/', async (req, res) => {
-    try {
-        const newBand = await Band.create(req.body)
-        res.status(200).json(newBand)
-    } catch (e) {
-        res.status(500).json(e)
-    }
-})
+});
 
 //* UPDATE BAND
 bands.put('/:id', async (req, res) => {
